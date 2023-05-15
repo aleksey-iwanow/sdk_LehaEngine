@@ -1,0 +1,11 @@
+empty_gameobject
+None
+854,533
+435,100
+0
+1
+False
+True
+UI^,^bool=active^,^True$Text^,^string=text^;^int=sizef^;^string=colorf^,^Play^;^60^;^#ffffff$Color box^,^string=color^,^#bbbbbb$Button^,^string=function^;^string=color_click^;^string=color_loc^,^self.gameObject.window.set_scene(1)^;^#ffffff^;^#ffffff
+None
+(~&~)

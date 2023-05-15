@@ -1,0 +1,33 @@
+snake_head
+None
+850,550
+25,25
+0
+1
+False
+True
+Color box^,^string=color^,^#03AB0C
+None
+~
+snake_head_deb
+None
+850,550
+25,25
+0
+1
+False
+True
+Color box^,^string=color^,^#03AB0C$Activeself^,^bool=active^,^False
+None
+~
+apple
+None
+850,550
+25,25
+0
+1
+False
+True
+Color box^,^string=color^,^#B00C0F
+None
+(~&~)
