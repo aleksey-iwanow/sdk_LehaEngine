@@ -1,7 +1,7 @@
 import os
 
 from PyQt5.QtWidgets import QFileDialog
-
+# pyuic5 -x image_engine.ui -o image_engine.py
 
 def getDirectory(self):  # <-----
     dirlist = QFileDialog.getExistingDirectory(self, "Выбрать папку", ".")
