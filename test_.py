@@ -1,5 +1,6 @@
 import os
-
+from pyspectator import Cpu
+from time import sleep
 from PyQt5.QtWidgets import QFileDialog
 # pyuic5 -x image_engine.ui -o image_engine.py
 
@@ -41,6 +42,3 @@ def saveFile(self):
                                                "All Files(*.*)")
     self.plainTextEdit.appendHtml("<br>Сохранить файл: <b>{}</b> <br> <b>{:*^54}</b>"
                                   "".format(filename, ok))
-
-
-print('раааботает')
