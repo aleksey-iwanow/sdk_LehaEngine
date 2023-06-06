@@ -290,6 +290,39 @@ class TerminalWidget:
             self.send_command()
 
 
+class TimerCustom:
+    def __init__(self, project_path, lbl, speed, frames, size, SIZE, index=0):
+        timer = QTimer()
+        timer.setInterval(speed)
+        timer.timeout.connect(self.step_time)
+        timer.start()
+        self.project_path = project_path
+        self.labelAnimation = lbl
+        self.timer = timer
+        self.speed = speed
+        self.index = index
+        self.frames = frames
+        self.size = size
+        self.SIZE = SIZE
+
+    def step_time(self):
+        pix = QtGui.QPixmap(f'{self.project_path}\\{self.frames[self.index]}')
+        if int(self.size[1]) > int(self.size[0]):
+            k = int(self.size[0]) / int(self.size[1])
+            pix = pix.scaled(int(self.SIZE * k), self.SIZE)
+        else:
+            k = int(self.size[1]) / int(self.size[0])
+            pix = pix.scaled(self.SIZE, int(self.SIZE * k))
+        try:
+            self.labelAnimation.setPixmap(pix)
+        except RuntimeError:
+            pass
+        if self.index + 1 >= len(self.frames):
+            self.index = 0
+        else:
+            self.index += 1
+
+
 StyleSheet = """
 /* Панель заголовка */
 TitleBar {
@@ -358,7 +391,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             scenes = sett[1]
             rn_fl = sett[2]
         self.sizeWindow = [1707, 1067]
-
+        self.timers = []
+        self.labelAnimation = None
         self.lines_center = []
         self.but_vec_resize = 0
         self.player = Player()
@@ -369,6 +403,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.icon_script = QIcon(QPixmap('./images/script_icon.png'))
         self.pixmap_func = QPixmap('./images/settingsIcon.png')
         self.icon_warning = QIcon(QPixmap('./images/icon_warning.png'))
+        self.icon_message = QIcon(QPixmap('./images/icons8-сообщение-100.png'))
+        self.icon_accept = QIcon(QPixmap('./images/free-icon-alert-8831709.png'))
         self.icon_sett = QIcon(QPixmap('./images/icon_func.png'))
         self.icon_image = QIcon(QPixmap('./images/image_icon.png'))
         self.icon_folder = QIcon(QPixmap('./images/folder_icon.png'))
@@ -396,6 +432,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.list_game_objects = []
         self.delta_list_game_objects = []
         self.widgets_ = []
+        self.widgets_2 = []
         self.items_tree = []
         self.list_line_edits_for_gm = []
         self.list_grid_layout_files = []
@@ -443,6 +480,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
         self.font_main = self.treeWidget.font()
         self.gridLayout.setAlignment(Qt.AlignTop)
+        self.gridLayout_5.setAlignment(Qt.AlignTop)
         self.gridLayout_files.setAlignment(Qt.AlignTop)
 
         self.cam_pos = [0, 0]
@@ -520,6 +558,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
         self.pushButtonSave.clicked.connect(self.save_gm)
         self.pushButtonSave_4.clicked.connect(self.update_scene)
+        self.pushButtonSave_4.setIcon(self.icon_act_update)
+
         self.pushButtonDelete.clicked.connect(self.delete)
         self.pushButtonPlus.clicked.connect(self.add_)
         self.pushButtonUpdateproject.clicked.connect(self.update_tree_widget_project)
@@ -528,8 +568,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.pushButtonClear.clicked.connect(self.listWidget.clear)
         self.radioButton.clicked.connect(self.update_tree_widget_project)
         self.radioButton_2.clicked.connect(self.update_tree_widget_project)
-
-        w.titleBar.signalButtonMy.connect(self.active_setting_panel)
 
         self.pushButtonPlus.hide()
         self.pushButtonSave.hide()
@@ -542,6 +580,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
         self.scrollArea.setStyleSheet(f"background-color: rgb(102, 126, 120, 90)")
         self.scrollArea_2.setStyleSheet("background-color: rgb(102, 126, 120, 0);}")
+        self.scrollArea_3.setStyleSheet("background-color: rgb(102, 126, 120, 0);}")
 
         '''self.timer = QTimer()
         self.timer.setInterval(1000)  # 100мс
@@ -586,6 +625,21 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.dockWidget_debug.installEventFilter(self)
 
         self.twidget = TerminalWidget(self.pushButton, self.label_3, self.textEdit, self.pushButton_2, self.pushButton_3, self.pushButton_4, self.lineEdit, self.pushButtonEnter, self.label_4)
+
+    def start(self):
+        ex.show()
+
+        ex.setMinimumSize(ex.width() - 500, ex.height() - 300)
+        w.setWindowTitle('SDK-LehaEngine')
+        w.setIconSize(60)
+        w.setWindowIcon(QIcon('icon_main.ico'))
+        w.setWidget(ex)  # Добавить свое окно
+        w.move(QPoint(100, 100))
+        w.setStyleSheet("#MainWindow{background-color: rgb(1,25,23)}")  # border-image:url(images/fon1.jpg)
+        w.showMaximized()
+        w.show()
+        w.titleBar.signalButtonMy.connect(self.active_setting_panel)
+        sys.exit(app.exec_())
 
     def update_statistic(self):
         self.graphicsView.clear()
@@ -899,8 +953,11 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
     def eventFilter(self, obj, event):
         if obj in [self.dockWidget_debug, self.dockWidget_Project, self.dockWidget, self.dockWidget_inspector, self.dockWidget_open] and event.type() == QEvent.Resize:
+            self.update_lines_center()
+
             self.treeWidget_Project.resize(self.dockWidget_open.width() - 10, self.dockWidget_open.height() - 30)
             self.scrollArea.resize(self.dockWidget_Project.width(), self.dockWidget_Project.height() - 30)
+
             w0 = self.findChild(QtWidgets.QWidget, f'widget_0')
             w0.resize(self.width() - self.dockWidget.width() - self.dockWidget_inspector.width() - 30, self.height() - 120 - self.dockWidget_open.height())
             self.tabWidget.resize(self.width() - self.dockWidget.width() - self.dockWidget_inspector.width() - 30, self.height() - 120 - self.dockWidget_open.height())
@@ -910,6 +967,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             self.tabWidgetDebug.resize(self.dockWidget_debug.width() - 10, self.dockWidget_debug.height())
             self.tabWidgetInspector.resize(self.dockWidget_inspector.width() - 10, self.dockWidget_inspector.height())
             self.scrollArea_2.resize(self.dockWidget_inspector.width() - 10, self.dockWidget_inspector.height() - 90)
+            self.scrollArea_3.resize(self.dockWidget_inspector.width() - 10, self.dockWidget_inspector.height() - 90)
+
             self.pushButtonSave.move(self.pushButtonSave.x(), self.tabWidgetInspector.height() - 70)
             self.pushButtonPlus.move(self.pushButtonPlus.x(), self.tabWidgetInspector.height() - 70)
             self.pushButtonDelete.move(self.pushButtonDelete.x(), self.tabWidgetInspector.height() - 70)
@@ -919,7 +978,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             self.lineEdit.resize(self.dockWidget_debug.width() - 10 - self.pushButtonEnter.width(), self.lineEdit.height())
             self.lineEdit.move(0, self.dockWidget_debug.height() - self.lineEdit.height() - 30)
             self.pushButtonEnter.move(self.dockWidget_debug.width() - 10 - self.pushButtonEnter.width(), self.dockWidget_debug.height() - self.pushButtonEnter.height() - 30)
-
         return super().eventFilter(obj, event)
 
     def resizeEvent(self, event):
@@ -1639,11 +1697,14 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         if 'ошибк' in message_.lower():
             mess.setForeground(QtGui.QColor(120, 18, 24))
             mess.setBackground(QtGui.QColor(92, 92, 92))
+            mess.setIcon(self.icon_warning)
         elif 'сохранены' in message_.lower():
             mess.setForeground(QtGui.QColor(51, 184, 0))
             mess.setBackground(QtGui.QColor(74,112,62))
+            mess.setIcon(self.icon_accept)
+        else:
+            mess.setIcon(self.icon_message)
         mess.setText(message_)
-        mess.setIcon(self.icon_warning)
 
     def delete(self):
         if self.index_gm_now != -9999999:
@@ -1833,19 +1894,30 @@ class MyWidget(QMainWindow, Ui_MainWindow):
     def clear_inspector(self):
         for i in self.widgets_:
             self.gridLayout.removeWidget(i)
+        for i in self.widgets_2:
+            self.gridLayout_5.removeWidget(i)
         self.pushButtonPlus.hide()
         self.pushButtonDelete.hide()
         self.pushButtonSave.hide()
         self.widgets_.clear()
-        self.listWidget_script.clear()
-        self.listWidget_script_2.clear()
+        self.widgets_2.clear()
+
+    def component_in_object(self, el, nm):
+        ls_components = [[i.split('^;^') for i in a.split('^,^')] for a in el.split('$')]
+        list_ = []
+        for list_values in ls_components:
+            if nm in list_values[0]:
+                list_.append(list_values)
+        return list_
 
     def update_inspector(self, ix):
+        for timer in self.timers:
+            timer.timer.stop()
+        self.timers.clear()
         for i in self.widgets_:
             self.gridLayout.removeWidget(i)
-
-        self.listWidget_script.clear()
-        self.listWidget_script_2.clear()
+        for i in self.widgets_2:
+            self.gridLayout_5.removeWidget(i)
 
         self.pushButtonSave.show()
         self.pushButtonDelete.show()
@@ -1855,8 +1927,75 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
             el = self.list_game_objects[ix]
             size = el[3].split(',')
+            wid1 = QtWidgets.QGroupBox(self)
+            wid1.setMinimumHeight(130)
+            # animation
+            lbl1 = QtWidgets.QLabel(self)
+            lbl1.setText(f'<{el[0]}>\ntype:=GameObject')
+            lbl1.resize(200, 80)
+            self.font_main.setPointSize(12)
+            lbl1.setFont(self.font_main)
 
-            # k2 = int(size[1]) / int(size[0])
+            lbl2 = QtWidgets.QLabel(self)
+            lbl2.setText('Animation:preview =>')
+            lbl2.resize(200, 70)
+            self.font_main.setPointSize(12)
+            lbl2.setFont(self.font_main)
+
+            components = self.component_in_object(el[8], "Animation")
+            if components:
+                tb = QtWidgets.QTabWidget(self)
+                tb.setFont(self.font_main)
+                for c in components:
+                    SIZE = 330  # const
+
+                    wid = QtWidgets.QWidget()
+                    frames = c[2][1].split('*&*')
+                    tb.addTab(wid, f'┌{c[2][6]}┐')
+                    labelAnimation = QtWidgets.QLabel(wid)
+                    pix = QtGui.QPixmap(f'{self.project_path}\\{frames[0]}')
+                    if int(size[1]) > int(size[0]):
+                        k = int(size[0]) / int(size[1])
+                        pix = pix.scaled(int(SIZE * k), SIZE)
+                    else:
+                        k = int(size[1]) / int(size[0])
+                        pix = pix.scaled(SIZE, int(SIZE * k))
+
+                    labelAnimation.setPixmap(pix)
+                    labelAnimation.move(40, 40)
+                    labelAnimation.resize(pix.width(), pix.height())
+
+                    ll2 = QtWidgets.QLabel(wid)
+                    ll2.setText(f'count => {len(frames)}')
+                    ll2.resize(200, 30)
+                    ll2.move(20, pix.height() + 30 + labelAnimation.y())
+                    self.font_main.setPointSize(12)
+                    ll2.setFont(self.font_main)
+
+                    ll2 = QtWidgets.QLabel(wid)
+                    ll2.setText(f'speed => {int(c[2][3])}')
+                    ll2.resize(200, 30)
+                    ll2.move(20, pix.height() + 60 + labelAnimation.y())
+                    self.font_main.setPointSize(12)
+                    ll2.setFont(self.font_main)
+
+                    ctimer = TimerCustom(self.project_path, labelAnimation, int(c[2][3]), frames, size, SIZE)
+
+                    self.timers.append(ctimer)
+                self.widgets_2 = [lbl1, lbl2, tb]
+            else:
+                lbl3 = QtWidgets.QLabel(self)
+                lbl3.setText(' None')
+                lbl3.resize(200, 90)
+                self.font_main.setPointSize(34)
+                lbl3.setFont(self.font_main)
+
+                self.widgets_2 = [lbl1, lbl2, lbl3]
+            for i in self.widgets_2:
+                i.setStyleSheet("color: #ceecde")
+                self.gridLayout_5.addWidget(i)
+
+            # inspector
             lbl = QtWidgets.QLabel(self)
             pix = QtGui.QPixmap(f'{self.project_path}\\{el[1]}')
             if int(size[1]) > int(size[0]):
@@ -2071,6 +2210,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
             self.list_line_edits_for_gm = [ln_ed_nm, ln_ed31, ln_ed3, ln_ed4, ln_ed5, ln_ed41, ln_ed32, ln_ed42, ln_ed6, ln_ed_par]
             self.frame_3.setMinimumHeight(5000)
+
 
 
 def create_game_object(name_, image, pos, size, angle, opacity, collision, add_in_list, components, parent, index_=-1):
@@ -2487,23 +2627,7 @@ class SettingsWidget(QWidget, Settings_Form):
         ex.update_scene()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    app.setStyleSheet(StyleSheet)
-    w = FramelessWindow()
-    ex = MyWidget()
-    ex.show()
-    user32 = ctypes.windll.user32
-    scz = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-
-    ex.setMinimumSize(ex.width() - 500, ex.height() - 300)
-    w.setWindowTitle('SDK-LehaEngine')
-    w.setIconSize(60)
-    w.setWindowIcon(QIcon('icon_main.ico'))
-    w.setWidget(ex)  # Добавить свое окно
-    w.move(QPoint(100, 100))
-    w.setStyleSheet("#MainWindow{background-color: rgb(1,25,23)}")  # border-image:url(images/fon1.jpg)
-    w.showMaximized()
-    w.show()
-
-    sys.exit(app.exec_())
+app = QApplication(sys.argv)
+app.setStyleSheet(StyleSheet)
+w = FramelessWindow()
+ex = MyWidget()

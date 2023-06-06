@@ -137,7 +137,6 @@ class Main:
             set_caption(f'fps: {str(round(self.win.get_fps(), 2))}')
             self.draw()
             self.win.update_window()
-
         quit_app()
 
 

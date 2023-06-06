@@ -59,7 +59,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
             with open('current_scene.settings', 'w', encoding='utf-8') as settings:
                 settings.write(f'{pr[0]}\n{pr[1]}\n{pr[2]}')
-            subprocess.Popen(f"C:\\Users\\aleks\\PycharmProjects\\python39\\Scripts\\python.exe sdkMain.py", shell=True)
+            subprocess.Popen(f"C:\\Users\\aleks\\PycharmProjects\\python39\\Scripts\\python.exe main.py", shell=True)
 
     def create_project(self):
         self.create_project_ex.show()
