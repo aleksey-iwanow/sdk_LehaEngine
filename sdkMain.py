@@ -1,4 +1,5 @@
 import os
+from bs4 import BeautifulSoup
 import shutil
 import sys
 import subprocess
@@ -26,7 +27,6 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QTreeWidgetItem, QListWid
 from PyQt5 import QtCore, QtWidgets
 from qt.textRedactor import Ui_MainWindow
 import subprocess as sp
-import ctypes
 import platform, socket, re, uuid, json, psutil, logging
 
 
@@ -68,11 +68,11 @@ commands = {
                'Выполняет системную команду'],
 }
 
-errorFormat = '<font color="red">{}</font>'
+errorFormat = '<font style="color:red">{}</font>'
 warningFormat = '<font color="orange">{}</font>'
 validFormat = '<font color="green">{}</font>'
 darkgreenFormat = '<font color="#80CF0C";">{}</font>'
-whiteFormat = '<font color="#A1A1A1">{}</font>'
+whiteFormat = '<font style="color:#A1A1A1">{}</font>'
 titleFormat = '<font style="color:#010101; background-color: #1F4D3C">{}</font>'
 
 
@@ -91,15 +91,16 @@ class TerminalWidget:
             pushButton, label_2, textEdit, pushButton_2, pushButton_3, pushButton_4, lineEdit, pushButtonEnter, label
 
         self.timer = QTimer()
-        self.timer.setInterval(503)
+        self.timer.setInterval(2555)
         self.timer.timeout.connect(self.timeStep)
         self.timer.start()
+
 
         self.pushButton.clicked.connect(self.close_nano)
         self.lineEdit.setStyleSheet(f"border: 2px solid #121C16; "
                                     f"background: #162e22")
-        self.textEdit.setStyleSheet(f"border: 2px solid #121C16; "
-                                    f"background: #162e22")
+        self.style_ = """border: 2px solid #121C16; background: #162e22; """
+        self.textEdit.setStyleSheet(self.style_)
         self.textEdit.setReadOnly(True)
         self.pushButton_2.clicked.connect(self.terminate_file)
         self.pushButton_4.clicked.connect(self.save_file)
@@ -111,8 +112,10 @@ class TerminalWidget:
         self.pushButton.hide()
         self.pushButtonEnter.clicked.connect(self.send_command)
         self.fl = ""
+        self.nano_file = None
         self.fl_is_run = False
         self.function_set_txt = None
+        self.pos_cur = None
         self.label.setText(f'┌{os.getcwd()}┐')
         self.set_cursor()
         self.text_main = f'''<span style="color:green;">НАЧАЛО РАБОТЫ!</span><br>'''
@@ -123,9 +126,10 @@ class TerminalWidget:
 
     def send_command(self):
         cp = os.getcwd()
+
         def set_txt(out=""):
             self.textEdit.setText(
-                f'{self.text_main}{titleFormat.format(cp + "~")} {command}<br><span style="background-color: #AB274F">#</span> {out if out else output}')
+                f'<div>{self.text_main}{titleFormat.format(cp + "~")} {command}<br><span style="background-color: #AB274F">#</span> {out if out else output}{darkgreenFormat.format(" ")}</div>')
             self.text_main = self.textEdit.toHtml()
             self.set_cursor()
             self.label.setText(f'┌{os.getcwd()}┐')
@@ -207,6 +211,7 @@ class TerminalWidget:
 
     def active_nano(self, pt):
         try:
+            self.nano_file = pt
             self.open_file(pt)
             self.textEdit.setReadOnly(False)
             self.lineEdit.hide()
@@ -264,6 +269,28 @@ class TerminalWidget:
             ext_proc = sp.Popen(['python', self.fl.split('\\')[-1]])
             sp.Popen.terminate(ext_proc)
 
+    def update_nano(self, file_):
+        with open(file_, 'r', encoding="utf-8") as fl__:
+            tx = fl__.read()
+
+            self.textEdit.setPlainText(tx)
+            ht = self.textEdit.toHtml()
+
+            is_code = False
+            for h in ht.split():
+                if h.startswith('text-indent:0px;">'):
+                    is_code = True
+                if is_code:
+                    h2 = h.replace("if", validFormat.format("if"))
+                    ht = ht.replace(h, h2)
+
+                if h.endswith('</p>'):
+                    is_code = False
+
+            self.textEdit.setText(f'{ht}')
+            count = len(tx.split("\n"))
+            self.label_2.setText(f'┌{count}┐')
+
     def open_file(self, file_):
         fl = sys.argv[0]
         fl = fl.replace('/', '\\')
@@ -274,13 +301,7 @@ class TerminalWidget:
                 self.fl = file_
             self.label.setText(f'┌{nm}┐')
 
-            with open(file_, 'r', encoding="utf-8") as fl__:
-                tx = fl__.read()
-                self.textEdit.setPlainText(tx)
-                self.textEdit.setText(f'<a style="color:#95CBBF;">{self.textEdit.toHtml()}</a>')
-
-                count = len(tx.split("\n"))
-                self.label_2.setText(f'┌{count}┐')
+            self.update_nano(file_)
         self.set_cursor()
 
     def key_press_event_term(self, e):
@@ -384,7 +405,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         uic.loadUi('ui\\sdk.ui', self)
-
+        self.PATH = getcwd()
         with open('current_scene.settings', 'r', encoding='utf-8') as settings:
             sett = settings.read().split('\n')
             pr_p = sett[0]
@@ -393,14 +414,36 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.sizeWindow = [1707, 1067]
         self.timers = []
         self.labelAnimation = None
+        self.is_center, self.is_custom = False, False
         self.lines_center = []
         self.but_vec_resize = 0
         self.player = Player()
         self.project_path = pr_p
+        self.treeWidget.setAlternatingRowColors(True)
+        self.treeWidget.setProperty("houdiniStyle", True)
+        STYLESHEET = '''QTreeWidget {border:None} 
 
+    QTreeWidget::Item{
+        border-bottom:2px solid black;
+    }
+    QTreeView{
+        alternate-background-color: rgba(84,104,99,190);
+    }
+    QTreeWidget::item:pressed,QTreeWidget::item:selected{background-color:rgb(74,112,62); color: #ceecde}
+    QTreeView::branch:open:has-children:!has-siblings{image:url(images/minus-square-outlined-button.png)}
+                                          QTreeView::branch:closed:has-children:!has-siblings{image:url(images/free-icon-instagram-post-5705604.png)}
+                                          QTreeView::branch:open:has-children{image:url(images/minus-square-outlined-button.png)}
+                                          QTreeView::branch:closed:has-children{image:url(images/free-icon-instagram-post-5705604.png)}
+                                          QTreeView::branch:open:{image:url(images/minus-square-outlined-button.png)}
+                                          QTreeView::branch:closed:{image:url(images/free-icon-instagram-post-5705604.png)}
+                                          ;'''
+        self.treeWidget.setStyleSheet(STYLESHEET)
         self.icon_obj = QIcon(QPixmap('./images/icon_obj.png'))
         self.icon_func = QIcon(QPixmap('./images/settingsIcon.png'))
         self.icon_script = QIcon(QPixmap('./images/script_icon.png'))
+        self.icon_left_top = QIcon(QPixmap('./images/icon_lefttop.png'))
+        self.icon_center = QIcon(QPixmap('./images/icon_center.png'))
+        self.icon_custom = QIcon(QPixmap('./images/icon_custom.png'))
         self.pixmap_func = QPixmap('./images/settingsIcon.png')
         self.icon_warning = QIcon(QPixmap('./images/icon_warning.png'))
         self.icon_message = QIcon(QPixmap('./images/icons8-сообщение-100.png'))
@@ -414,6 +457,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.icon_act_update = QIcon(QPixmap('./images/icons8-параметры-синхронизации-96.png'))
         self.icon_act_save = QIcon(QPixmap('./images/icons8-сохранить-48.png'))
         self.icon_act_settings = QIcon(QPixmap('./images/icons8-шестерни-80.png'))
+        self.icon_copy = QIcon(QPixmap('./images/files-copy-interface-symbol.png'))
+        self.icon_paste = QIcon(QPixmap('./images/free-icon-add-4972348.png'))
         self.icon_doc = QIcon(QPixmap('./images/icon_doc.png'))
         self.image_doc = QtGui.QPixmap('./images/icon_doc.png')
         self.audio_icon = QtGui.QPixmap('./images/icon_audio.png')
@@ -479,6 +524,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                                          'add to list => ']
 
         self.font_main = self.treeWidget.font()
+
         self.gridLayout.setAlignment(Qt.AlignTop)
         self.gridLayout_5.setAlignment(Qt.AlignTop)
         self.gridLayout_files.setAlignment(Qt.AlignTop)
@@ -555,16 +601,47 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.actionUpdate_scene.setIcon(self.icon_act_update)
         self.actionSave_scene.setIcon(self.icon_act_save)
         self.actionSettings.setIcon(self.icon_act_settings)
+        button_with_icon_style = '''QPushButton
+{
+	background-color: rgb(51,101,45);
+	border: 2px solid rgb(34,85,34);
+	color: rgb(255,255,255)
+}
 
+QPushButton:hover
+{
+	background-color: rgb(40,90,40);
+	color: rgb(255,255,255)
+}'''
         self.pushButtonSave.clicked.connect(self.save_gm)
         self.pushButtonSave_4.clicked.connect(self.update_scene)
         self.pushButtonSave_4.setIcon(self.icon_act_update)
+        self.pushButtonSave_4.setIconSize(QSize(40, 40))
+        self.pushButtonSave_4.setStyleSheet(button_with_icon_style)
+        self.pushButtonCustom.clicked.connect(lambda: self.set_moving("custom"))
+        self.pushButtonCustom.setIcon(self.icon_custom)
+        self.pushButtonCustom.setIconSize(QSize(40, 40))
+        self.pushButtonCustom.setStyleSheet(button_with_icon_style)
+        self.pushButtonCenter.clicked.connect(lambda: self.set_moving("center"))
+        self.pushButtonCenter.setIcon(self.icon_center)
+        self.pushButtonCenter.setIconSize(QSize(40, 40))
+        self.pushButtonCenter.setStyleSheet(button_with_icon_style)
+        self.pushButtonLeftTop.clicked.connect(lambda: self.set_moving("left top"))
+        self.pushButtonLeftTop.setIcon(self.icon_left_top)
+        self.pushButtonLeftTop.setIconSize(QSize(40, 40))
+        self.pushButtonLeftTop.setStyleSheet(button_with_icon_style)
 
         self.pushButtonDelete.clicked.connect(self.delete)
         self.pushButtonPlus.clicked.connect(self.add_)
         self.pushButtonUpdateproject.clicked.connect(self.update_tree_widget_project)
         self.pushButtonCopy.clicked.connect(self.copy_gm)
+        self.pushButtonCopy.setIcon(self.icon_copy)
+        self.pushButtonCopy.setIconSize(QSize(40, 40))
+        self.pushButtonCopy.setStyleSheet(button_with_icon_style)
         self.pushButtonPaste.clicked.connect(self.paste_gm)
+        self.pushButtonPaste.setIcon(self.icon_paste)
+        self.pushButtonPaste.setIconSize(QSize(40, 40))
+        self.pushButtonPaste.setStyleSheet(button_with_icon_style)
         self.pushButtonClear.clicked.connect(self.listWidget.clear)
         self.radioButton.clicked.connect(self.update_tree_widget_project)
         self.radioButton_2.clicked.connect(self.update_tree_widget_project)
@@ -586,7 +663,8 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.timer.setInterval(1000)  # 100мс
         self.timer.timeout.connect(lambda : self.get_message())
         self.timer.start()'''
-        tree_wid_style = """QTreeView::branch:open:has-children:!has-siblings{image:url(images/minus-square-outlined-button.png)}
+        tree_wid_style = """
+        QTreeView::branch:open:has-children:!has-siblings{image:url(images/minus-square-outlined-button.png)}
                                           QTreeView::branch:closed:has-children:!has-siblings{image:url(images/free-icon-instagram-post-5705604.png)}
                                           QTreeView::branch:open:has-children{image:url(images/minus-square-outlined-button.png)}
                                           QTreeView::branch:closed:has-children{image:url(images/free-icon-instagram-post-5705604.png)}
@@ -595,7 +673,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                                           ;"""
 
         self.treeWidget_Project.setStyleSheet(tree_wid_style)
-        self.treeWidget.setStyleSheet(tree_wid_style)
 
         self.update_statistic()
         self.tabWidget.setCurrentIndex(0)
@@ -623,7 +700,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.dockWidget_Project.installEventFilter(self)
         self.dockWidget_inspector.installEventFilter(self)
         self.dockWidget_debug.installEventFilter(self)
-
         self.twidget = TerminalWidget(self.pushButton, self.label_3, self.textEdit, self.pushButton_2, self.pushButton_3, self.pushButton_4, self.lineEdit, self.pushButtonEnter, self.label_4)
 
     def start(self):
@@ -640,6 +716,21 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         w.show()
         w.titleBar.signalButtonMy.connect(self.active_setting_panel)
         sys.exit(app.exec_())
+
+    def set_cursor(self):
+        self.listWidget.setCurrentRow(self.listWidget.count() - 1)
+
+    def set_moving(self, mode):
+        if mode == "custom":
+            self.is_center = False
+            self.is_custom = True
+        elif mode == "left top":
+            self.is_center = False
+            self.is_custom = False
+        elif mode == "center":
+            self.is_center = True
+            self.is_custom = False
+        self.send_debug_message(f"установлен режим перемещения объекта: {mode}")
 
     def update_statistic(self):
         self.graphicsView.clear()
@@ -674,10 +765,9 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             scenes_fl = onlyfiles[0]
 
             dirlist = dirlist.replace('/', '\\')
-            print(getcwd())
             with open('current_scene.settings', 'w', encoding='utf-8') as settings:
                 settings.write(f'{dirlist}\n{scenes_fl}\nNone')
-            subprocess.Popen(f"python {getcwd()}\\sdkMain.py", shell=True)
+            subprocess.Popen(f"python {self.PATH}\\main.py", shell=True)
 
     def zeroing_values(self):
         self.cam_pos = [0, 0]
@@ -978,6 +1068,10 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             self.lineEdit.resize(self.dockWidget_debug.width() - 10 - self.pushButtonEnter.width(), self.lineEdit.height())
             self.lineEdit.move(0, self.dockWidget_debug.height() - self.lineEdit.height() - 30)
             self.pushButtonEnter.move(self.dockWidget_debug.width() - 10 - self.pushButtonEnter.width(), self.dockWidget_debug.height() - self.pushButtonEnter.height() - 30)
+            for but in [self.pushButton, self.pushButton_2, self.pushButton_4, self.pushButton_3]:
+                but.move(but.x(), self.dockWidget_debug.height() - but.height() - 30) if but.isActiveWindow() else lambda: None
+
+
         return super().eventFilter(obj, event)
 
     def resizeEvent(self, event):
@@ -1087,15 +1181,21 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                         lbl3.setFont(self.font_main)
                         lbl3.setStyleSheet("color: #ceecde")
 
-                        ln_ed3 = QtWidgets.QLineEdit(wid1)
-                        ln_ed3.setText('0' if list_values[2][list_values[1].index(i)].lower() == 'none' and i.split('=')[0] == 'int' else ('False' if list_values[2][list_values[1].index(i)].lower() == 'none' and i.split('=')[0] == 'bool' else list_values[2][list_values[1].index(i)]))
-                        ln_ed3.resize(200, 30)
-                        ln_ed3.move(200, pad_y)
-                        pad_y += 30
-                        ln_ed3.setStyleSheet("background-color: #77D4C5")
-                        self.font_main.setPointSize(8)
-                        ln_ed3.setFont(self.font_main)
+                        if i.split("=")[0] == "bool":
+                            ln_ed3 = QtWidgets.QCheckBox(wid1)
+                            ln_ed3.setChecked(booled(list_values[2][list_values[1].index(i)].lower()))
+                            ln_ed3.setStyleSheet("background-color: #77D4C5")
+                            ln_ed3.resize(26, 26)
+                            ln_ed3.move(200, pad_y + 2)
+                        else:
+                            ln_ed3 = QtWidgets.QLineEdit(wid1)
+                            ln_ed3.setText('0' if list_values[2][list_values[1].index(i)].lower() == 'none' and i.split('=')[0] == 'int' else ('False' if list_values[2][list_values[1].index(i)].lower() == 'none' and i.split('=')[0] == 'bool' else list_values[2][list_values[1].index(i)]))
+                            ln_ed3.resize(200, 30)
+                            ln_ed3.move(200, pad_y)
+                            ln_ed3.setStyleSheet("background-color: #77D4C5")
+                            ln_ed3.setFont(self.font_main)
 
+                        pad_y += 30
                         ls_vl.append(ln_ed3)
                     else:
                         curr_count = ['', 0]
@@ -1287,10 +1387,12 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         if index_ != -999999:
             self.index_sel_gm = index_
             self.index_gm_now = index_
+            self.update_treeview()
             self.update_inspector(index_)
+            self.items_tree[index_].setSelected(True)
+            self.items_tree[index_].parent().setExpanded(True)
 
             if self.index_gm_now < len(self.list_game_objects):
-                obj = self.list_game_objects[self.index_gm_now]
                 cmp = ''
                 cmpt = ''
                 if len(self.list_game_objects[self.index_gm_now]) > 9:
@@ -1453,13 +1555,13 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             if self.index_sel_gm != -9999999 and self.choose_object:
                 self.update_inspector(self.index_sel_gm)
                 obj = self.list_game_objects[self.index_gm_now]
-                x_m, y_m = event.x() - self.tabWidget.x() - ((4 + self.dockWidget.width()) if not self.radioButton_5.isChecked() else 0), event.y() - self.tabWidget.y() - 60
-                x_mm, y_mm = event.x() - self.cam_pos_now[0] - self.tabWidget.x() - ((4 + self.dockWidget.width()) if not self.radioButton_5.isChecked() else 0), event.y() - self.cam_pos_now[1] - self.tabWidget.y() - 60
-                x_m2 = x_m - int((x_m - self.cam_pos_now[0]) % (self.movement * self.scale_factor)) - (self.r1 if self.radioButton_5.isChecked() else self.labels_in_scene[self.index_sel_gm].width() // 2 if self.radioButton_3.isChecked() else 0)
-                y_m2 = y_m - int((y_m - self.cam_pos_now[1]) % (self.movement * self.scale_factor)) - (self.r2 if self.radioButton_5.isChecked() else self.labels_in_scene[self.index_sel_gm].height() // 2 if self.radioButton_3.isChecked() else 0)
+                x_m, y_m = event.x() - self.tabWidget.x() - ((4 + self.dockWidget.width()) if not self.is_custom else 0), event.y() - self.tabWidget.y() - 60
+                x_mm, y_mm = event.x() - self.cam_pos_now[0] - self.tabWidget.x() - ((4 + self.dockWidget.width()) if not self.is_custom else 0), event.y() - self.cam_pos_now[1] - self.tabWidget.y() - 60
+                x_m2 = x_m - int((x_m - self.cam_pos_now[0]) % (self.movement * self.scale_factor)) - (self.r1 if self.is_custom else self.labels_in_scene[self.index_sel_gm].width() // 2 if self.is_center else 0)
+                y_m2 = y_m - int((y_m - self.cam_pos_now[1]) % (self.movement * self.scale_factor)) - (self.r2 if self.is_custom else self.labels_in_scene[self.index_sel_gm].height() // 2 if self.is_center else 0)
 
-                x_m3 = round((x_mm - x_mm % (self.movement * self.scale_factor)) / self.scale_factor) - (self.r1obj if self.radioButton_5.isChecked() else int(obj[3].split(',')[0]) // 2 if self.radioButton_3.isChecked() else 0)
-                y_m3 = round((y_mm - y_mm % (self.movement * self.scale_factor)) / self.scale_factor) - (self.r2obj if self.radioButton_5.isChecked() else int(obj[3].split(',')[1]) // 2 if self.radioButton_3.isChecked() else 0)
+                x_m3 = round((x_mm - x_mm % (self.movement * self.scale_factor)) / self.scale_factor) - (self.r1obj if self.is_custom else int(obj[3].split(',')[0]) // 2 if self.is_center else 0)
+                y_m3 = round((y_mm - y_mm % (self.movement * self.scale_factor)) / self.scale_factor) - (self.r2obj if self.is_custom else int(obj[3].split(',')[1]) // 2 if self.is_center else 0)
 
                 self.labels_in_scene[self.index_sel_gm].move(x_m2, y_m2)
                 self.move_buttons_choose_object(self.index_sel_gm)
@@ -1705,6 +1807,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         else:
             mess.setIcon(self.icon_message)
         mess.setText(message_)
+        self.set_cursor()
 
     def delete(self):
         if self.index_gm_now != -9999999:
@@ -1733,7 +1836,10 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         if self.index_gm_now != -9999999:
             el = []
             for wd in range(len(self.list_line_edits_for_gm) - 2):
-                el.append(self.list_line_edits_for_gm[wd].text())
+                if type(self.list_line_edits_for_gm[wd]).__name__ == 'QLineEdit':
+                    el.append(self.list_line_edits_for_gm[wd].text())
+                else:
+                    el.append(str(self.list_line_edits_for_gm[wd].isChecked()))
 
             for e in el:
                 if not e.strip():
@@ -1749,9 +1855,9 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                         ls = []
                         for a in self.list_components_values[i]:
                             if type(a) == list:
-                                ls.append("*&*".join([a2.text() for a2 in a]))
+                                ls.append("*&*".join([a2.text() if type(a2).__name__ == 'QLineEdit' else str(a2.isChecked()) for a2 in a]))
                             else:
-                                ls.append(a.text())
+                                ls.append(a.text() if type(a).__name__ == 'QLineEdit' else str(a.isChecked()))
 
                         ln2 = '^;^'.join(ls)
                         ln += (('$' if i != 0 else '') + f'{coms[i].split("^,^")[0]}^,^{"^;^".join(coms[i].split("^,^")[1].split("^;^"))}^,^{ln2}')
@@ -1762,11 +1868,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
 
                 if self.index_gm_now != int(self.list_line_edits_for_gm[-2].text()):
                     self.move_object_of_index(int(self.list_line_edits_for_gm[-2].text()))
-
-            else:
-                self.list_ui_objects[self.index_gm_now - len(self.list_game_objects)] = el
-                if self.index_gm_now - len(self.list_game_objects) != int(self.list_line_edits_for_gm[-2].text()):
-                    self.move_ui_of_index(int(self.list_line_edits_for_gm[-2].text()))
             self.update_treeview()
             self.update_scene()
             self.update_inspector(self.index_gm_now)
@@ -1794,28 +1895,17 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         name_ = indexes.data(Qt.DisplayRole)
         idx = -999999
         element = None
-        element_ui = None
         for el in self.list_game_objects:
             if name_ == el[0]:
                 idx = self.list_game_objects.index(el)
                 element = self.list_game_objects[idx]
-        if idx == -999999:
-            for el in self.list_ui_objects:
-                if name_ == el[0]:
-                    idx = self.list_ui_objects.index(el)
-                    element_ui = self.list_ui_objects[idx]
         if element:
             self.index_gm_now = idx
 
             self.select_item(0, 0, self.index_gm_now)
             self.update_inspector(self.index_gm_now)
-        elif element_ui:
-            self.index_gm_now = idx + len(self.list_game_objects)
 
-            self.select_item(0, 0, self.index_gm_now)
-            self.update_inspector(self.index_gm_now)
-
-    def rec_tree(self, name, item):
+    def rec_tree(self, name, item, itms):
         for el in self.list_game_objects:
             nm = el[9] if len(el) > 9 else el[8]
             if nm == name:
@@ -1824,6 +1914,10 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                 item_.setText(0, el[0])
                 item_.setIcon(0, self.icon_obj)
                 item_.setFont(0, QFont('Times', 10))
+                for h in itms:
+                    if item_.text(0) == h[0] and h[1]:
+                        print("sd")
+                        item_.setExpanded(True)
                 self.items_tree.append(item_)
                 self.delta_list_game_objects.append(el)
                 for el_ in self.list_game_objects:
@@ -1832,6 +1926,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                         self.rec_tree(el[0], item_)
 
     def update_treeview(self):
+        itms = [[a.text(0), a.isExpanded()] for a in self.items_tree]
         self.treeWidget.clear()
         self.items_tree.clear()
         item_2 = QTreeWidgetItem(self.treeWidget)
@@ -1840,7 +1935,6 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         item_2.setExpanded(True)
         item_2.setForeground(0, QtGui.QBrush(QtGui.QColor("#37B98D")))
         item_2.setFont(0, QFont('Times', 12))
-
         index_ = 0
         self.delta_list_game_objects.clear()
         for i in self.list_game_objects:
@@ -1848,48 +1942,21 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             if nm == '[]' or nm == 'None':
                 item_ = QTreeWidgetItem(item_2)
                 # s = f"<{index_}> "
+
                 item_.setText(0, i[0])
                 item_.setIcon(0, self.icon_obj)
                 item_.setFont(0, QFont('Times', 10))
+                for h in itms:
+                    if item_.text(0) == h[0] and h[1]:
+                        item_.setExpanded(True)
                 self.items_tree.append(item_)
                 index_ += 1
                 self.delta_list_game_objects.append(i)
-                self.rec_tree(i[0], item_)
+                self.rec_tree(i[0], item_, itms)
 
-            '''for j in range(1, len(i) - 2):
-                item_s = QTreeWidgetItem(item_)
-                item_s.setText(0, self.list_settings_parameters[j - 1] + i[j])
-                item_s.setIcon(0, self.icon_sett)
-                item_s.setExpanded(True)
-                item_s.setForeground(0, QtGui.QBrush(QtGui.QColor("#4EE3E9")))
-                item_s.setFont(0, QFont('Times', 10))'''
         self.list_game_objects.clear()
         for elem in self.delta_list_game_objects:
             self.list_game_objects.append(elem)
-        '''item_3 = QTreeWidgetItem(self.treeWidget)
-        item_3.setText(0, '<UI>')  # └
-        item_3.setIcon(0, self.icon_py2)
-        item_3.setExpanded(True)
-        item_3.setForeground(0, QtGui.QBrush(QtGui.QColor("#37B98D")))
-        item_3.setFont(0, QFont('Times', 12))
-
-        index_ = 0
-        for i in self.list_ui_objects:
-            item_ = QTreeWidgetItem(item_3)
-            s = f"<{index_}> "
-            item_.setText(0, s + i[0])
-            item_.setIcon(0, self.icon_obj)
-            item_.setFont(0, QFont('Times', 10))
-
-            for j in range(1, len(i)):
-                item_s = QTreeWidgetItem(item_)
-                item_s.setText(0, self.list_settings_parameters_ui[j - 1] + i[j])
-                item_s.setIcon(0, self.icon_sett)
-                item_s.setExpanded(True)
-                item_s.setForeground(0, QtGui.QBrush(QtGui.QColor("#4EE3E9")))
-                item_s.setFont(0, QFont('Times', 10))
-            self.items_tree_ui.append(item_)
-            index_ += 1'''
 
     def clear_inspector(self):
         for i in self.widgets_:
@@ -2000,10 +2067,10 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             pix = QtGui.QPixmap(f'{self.project_path}\\{el[1]}')
             if int(size[1]) > int(size[0]):
                 k = int(size[0]) / int(size[1])
-                pix = pix.scaled(int(400 * k), 400)
+                pix = pix.scaled(int(300 * k), 300)
             else:
                 k = int(size[1]) / int(size[0])
-                pix = pix.scaled(400, int(400 * k))
+                pix = pix.scaled(300, int(300 * k))
             lbl.setPixmap(pix)
             lbl.resize(pix.width(), pix.height())
             opacity_effect = QGraphicsOpacityEffect()
@@ -2159,13 +2226,11 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             self.font_main.setPointSize(8)
             lbl32.setFont(self.font_main)
 
-            ln_ed32 = QtWidgets.QLineEdit(wid3)
-            ln_ed32.setText(el[6])
-            ln_ed32.resize(200, 30)
-            ln_ed32.move(200, 35)
+            ln_ed32 = QtWidgets.QCheckBox(wid3)
+            ln_ed32.setChecked(booled(el[6].lower()))
             ln_ed32.setStyleSheet("background-color: #77D4C5")
-            self.font_main.setPointSize(8)
-            ln_ed32.setFont(self.font_main)
+            ln_ed32.resize(26, 26)
+            ln_ed32.move(200, 37)
 
             lbl42 = QtWidgets.QLabel(wid3)
             lbl42.setText(' add to list = ')
@@ -2174,13 +2239,11 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             self.font_main.setPointSize(8)
             lbl42.setFont(self.font_main)
 
-            ln_ed42 = QtWidgets.QLineEdit(wid3)
-            ln_ed42.setText(el[7])
-            ln_ed42.resize(200, 30)
-            ln_ed42.move(200, 65)
+            ln_ed42 = QtWidgets.QCheckBox(wid3)
+            ln_ed42.setChecked(booled(el[7].lower()))
             ln_ed42.setStyleSheet("background-color: #77D4C5")
-            self.font_main.setPointSize(8)
-            ln_ed42.setFont(self.font_main)
+            ln_ed42.resize(26, 26)
+            ln_ed42.move(200, 67)
 
             lbl_par = QtWidgets.QLabel(wid3)
             lbl_par.setText(' parent      = ')
