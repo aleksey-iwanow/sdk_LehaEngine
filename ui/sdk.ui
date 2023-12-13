@@ -3960,7 +3960,7 @@ QMenu::separator { background-color: #37B98D; height: 0.05em; }</string>
       <enum>QTabWidget::Rounded</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="elideMode">
       <enum>Qt::ElideNone</enum>
@@ -4270,7 +4270,7 @@ QMenu::separator { background-color: #37B98D; height: 0.05em; }</string>
      </widget>
      <widget class="QWidget" name="tab_3">
       <attribute name="title">
-       <string>┌Tetminal┐</string>
+       <string>┌Terminal┐</string>
       </attribute>
       <widget class="QLabel" name="label_3">
        <property name="geometry">

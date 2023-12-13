@@ -42,3 +42,4 @@ def saveFile(self):
                                                "All Files(*.*)")
     self.plainTextEdit.appendHtml("<br>Сохранить файл: <b>{}</b> <br> <b>{:*^54}</b>"
                                   "".format(filename, ok))
+

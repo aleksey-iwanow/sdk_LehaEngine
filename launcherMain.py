@@ -17,7 +17,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.image_back = QPixmap('./icon_main.ico')
+        self.image_back = QPixmap('icon.ico')
         self.image_back = self.image_back.scaled(self.back_image.width(), self.back_image.height())
         self.back_image.setPixmap(self.image_back)
         self.padx = self.tabWidget.x() * 2
@@ -46,6 +46,9 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         self.pushButton_Create.clicked.connect(self.create_project)
         self.pushButton_Create.setGraphicsEffect(opacity_effect4)
         self.tableWidget.doubleClicked.connect(self.open_project)
+        self.tableWidget.verticalHeader().hide()
+        self.tableWidget.setStyleSheet("""QHeaderView::section { background-color: rgb(48,144,145); color: rgb(0,0,0); border: 0px; font-family: 'CatV 6x12 9'; font-size: 26px; }
+    QTableWidget::item:pressed,QTableWidget::item:selected{color: rgb(240,240,240); background-color: rgb(130,130,130)}; """)
         self.textBrowser.setSource(QUrl.fromLocalFile('learnHtml.html'))
         self.create_project_ex = CreateUiWidget()
         self.create_db()
@@ -84,9 +87,10 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                                 })
 
     def delete_project(self):
-        if self.tableWidget.currentRow() != -1:
-            sql_delete_query = f"""DELETE from projects where id = {self.tableWidget.currentRow()}"""
-            self.cur.execute(sql_delete_query)
+        index = self.tableWidget.currentRow()
+        if index != -1:
+            self.cur.execute(f"DELETE from projects where id = {index}")
+            self.cur.execute(f"UPDATE projects SET id=id-1 WHERE id > {index}")
             self.conn.commit()
             self.update_db()
 
@@ -114,6 +118,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         des = ''
         for item_ in descript:
             des += f'{item_}{" " * (11 - len(item_))}-->  {descript[item_]}\n'
+        print(('0' * (5 - len(str(id1))) + str(id1)))
         project = (('0' * (5 - len(str(id1))) + str(id1)), name, now.strftime("%d-%m-%Y %H:%M"), des)
         self.cur.execute("INSERT INTO projects VALUES(?, ?, ?, ?);", project)
         self.conn.commit()
@@ -135,6 +140,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
                 ls = []
                 for j, val in enumerate(elem):
                     it = QTableWidgetItem(str(val))
+
                     it.setFlags(it.flags() ^ Qt.ItemIsEditable)
                     ls.append(str(val))
                     self.tableWidget.setItem(i, j, it)
@@ -152,7 +158,7 @@ class MyWidget(QMainWindow, Ui_MainWindow):
         w = 0
         for i in range(self.tableWidget.columnCount() - 1):
             w += self.tableWidget.columnWidth(i)
-        self.tableWidget.setColumnWidth(self.tableWidget.columnCount() - 1, self.tableWidget.width() - w - 55)
+        self.tableWidget.setColumnWidth(self.tableWidget.columnCount() - 1, self.tableWidget.width() - w - 2)
         self.textBrowser.resize(self.tabWidget.width(), self.tabWidget.height() - 30)
 
 
@@ -170,25 +176,29 @@ class CreateUiWidget(QWidget, Ui_Form):
         with open(f'{nm}\\{run}(run).py', 'w+', encoding='utf-8') as fl:
             fl.write(f'''
 from framework_LehaEngine import *
-# имортируем все элементы из фреймворка
-            
-            
-# создаем главное окно игры
-win = Window([1000, 600], "{nm}")
+# импортируем все элементы фреймворка
 
-# главный цикл
-while check_run():  # цикл работает пока приложение запущено
-    # заливка окна
-    win.fill_window()
-    # обновление всех обьектов
-    win.update_game_objects()
-    # устанавливаем заголовок окна с текущим FPS
-    set_caption("fps:" + str(round(win.get_fps(), 2)))
-    # обновление окна
-    win.update_window()
 
-# выход
-quit_app()
+class Game:
+    def __init__(self):
+        self.win = Window([1000, 600], "{nm}")  # создание окна
+
+        while check_run():  # цикл работает пока приложение запущено
+            # заливка окна
+            self.win.fill_window()
+            # обновление всех объектов
+            self.win.update_game_objects()
+            # устанавливаем заголовок окна с текущим FPS
+            set_caption("fps:" + str(round(self.win.get_fps(), 2)))
+            # обновление окна
+            self.win.update_window()
+
+        # выход
+        quit_app()
+
+
+if __name__ == "__main__":
+    game = Game()
 ''')
 
         with open(f'{nm}\\main.scene', 'w+', encoding='utf-8') as fl:

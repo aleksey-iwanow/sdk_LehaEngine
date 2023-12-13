@@ -2,6 +2,7 @@ import os
 from bs4 import BeautifulSoup
 import shutil
 import sys
+import pyqtgraph
 import subprocess
 from os import listdir, path, getcwd
 from PIL import Image
@@ -28,7 +29,6 @@ from PyQt5 import QtCore, QtWidgets
 from qt.textRedactor import Ui_MainWindow
 import subprocess as sp
 import platform, socket, re, uuid, json, psutil, logging
-
 
 def get_system_info():
     try:
@@ -344,6 +344,40 @@ class TimerCustom:
             self.index += 1
 
 
+class TitleLabel(QLabel):
+    def __init__(self, win, text):
+        super().__init__(win)
+        self.setStyleSheet("""background-color: rgb(20,20,20,60); color: #ceecde;""")
+        self.txt = QLabel(self)
+        self.txt.setText(text)
+        self.txt.show()
+        self.txt.move(50,0)
+        self.txt.setStyleSheet("""background-color: transparent; color: #ceecde;""")
+        self.txt.resize(1000, self.height())
+        win.font_main.setPointSize(12)
+        self.txt.setFont(win.font_main)
+        win.font_main.setPointSize(14)
+        self.setFont(win.font_main)
+
+        self.button = QPushButton(self)
+        self.button.resize(30,30)
+        self.button.show()
+        self.button.setStyleSheet("border: none")
+        self.button.setText("⮟")
+        self.button.clicked.connect(self.active_control)
+
+    def active_control(self):
+        if self.widget.isHidden():
+            self.button.setText("⮟")
+            self.widget.show()
+        else:
+            self.button.setText("⮞")
+            self.widget.hide()
+
+    def set_widget(self, widget):
+        self.widget = widget
+
+
 StyleSheet = """
 /* Панель заголовка */
 TitleBar {
@@ -375,6 +409,17 @@ TitleBar {
     background-color: rgb(161, 73, 92);
 }
 """
+but_style = '''QPushButton
+                                    {
+                                        background-color: rgb(70,118,66,190);
+                                        color: rgb(255,255,255)
+                                    }
+                                    
+                                    QPushButton:hover
+                                    {
+                                        background-color: rgb(40,88,36,190);
+                                        color: rgb(255,255,255)
+                                    }'''
 
 
 def booled(arg):
@@ -411,6 +456,12 @@ class MyWidget(QMainWindow, Ui_MainWindow):
             pr_p = sett[0]
             scenes = sett[1]
             rn_fl = sett[2]
+
+        self.timer = QTimer()
+        self.timer.setInterval(50)
+        self.timer.timeout.connect(self.timer_update)
+        self.timer.start()
+
         self.sizeWindow = [1707, 1067]
         self.timers = []
         self.labelAnimation = None
@@ -654,6 +705,8 @@ QPushButton:hover
         # self.check_click()
         self.update_tree_widget_project()
         self.treeWidget_Project.setIconSize(QSize(30, 30))
+        self.treeWidget_Project.setAlternatingRowColors(True)
+        self.treeWidget_Project.setProperty("houdiniStyle", True)
 
         self.scrollArea.setStyleSheet(f"background-color: rgb(102, 126, 120, 90)")
         self.scrollArea_2.setStyleSheet("background-color: rgb(102, 126, 120, 0);}")
@@ -663,7 +716,7 @@ QPushButton:hover
         self.timer.setInterval(1000)  # 100мс
         self.timer.timeout.connect(lambda : self.get_message())
         self.timer.start()'''
-        tree_wid_style = """
+        tree_wid_style = """QTreeView{alternate-background-color: rgba(15,15,15, 15);}
         QTreeView::branch:open:has-children:!has-siblings{image:url(images/minus-square-outlined-button.png)}
                                           QTreeView::branch:closed:has-children:!has-siblings{image:url(images/free-icon-instagram-post-5705604.png)}
                                           QTreeView::branch:open:has-children{image:url(images/minus-square-outlined-button.png)}
@@ -708,7 +761,7 @@ QPushButton:hover
         ex.setMinimumSize(ex.width() - 500, ex.height() - 300)
         w.setWindowTitle('SDK-LehaEngine')
         w.setIconSize(60)
-        w.setWindowIcon(QIcon('icon_main.ico'))
+        w.setWindowIcon(QIcon('icon.ico'))
         w.setWidget(ex)  # Добавить свое окно
         w.move(QPoint(100, 100))
         w.setStyleSheet("#MainWindow{background-color: rgb(1,25,23)}")  # border-image:url(images/fon1.jpg)
@@ -716,6 +769,19 @@ QPushButton:hover
         w.show()
         w.titleBar.signalButtonMy.connect(self.active_setting_panel)
         sys.exit(app.exec_())
+
+    def obj_in_window(self, obj):
+        widget = obj.parent()
+        if -obj.width() < obj.x() < widget.width() and -obj.height() < obj.y() < widget.height():
+            return True
+        return False
+
+    def timer_update(self):
+        for obj in self.labels_in_scene:
+            if self.obj_in_window(obj):
+                obj.show()
+            else:
+                obj.hide()
 
     def set_cursor(self):
         self.listWidget.setCurrentRow(self.listWidget.count() - 1)
@@ -767,7 +833,8 @@ QPushButton:hover
             dirlist = dirlist.replace('/', '\\')
             with open('current_scene.settings', 'w', encoding='utf-8') as settings:
                 settings.write(f'{dirlist}\n{scenes_fl}\nNone')
-            subprocess.Popen(f"python {self.PATH}\\main.py", shell=True)
+            os.chdir(self.PATH)
+            subprocess.Popen(f"python main.py", shell=True)
 
     def zeroing_values(self):
         self.cam_pos = [0, 0]
@@ -924,7 +991,7 @@ QPushButton:hover
                     old_h[0] + old_h[1] + self.gridLayout_files.verticalSpacing() * 2
             if not col:
                 for i in range(6 - row):
-                    pix = QtGui.QPixmap(f'icon_main.ico')
+                    pix = QtGui.QPixmap(f'icon.ico')
                     pix = pix.scaled(110, 110)
                     lbl1 = QLabel(self)
                     lbl1.setPixmap(pix)
@@ -1140,30 +1207,16 @@ QPushButton:hover
         index_main = 0
         for list_values in ls_components:
             if len(list_values) > 1:
-                lbl2 = QtWidgets.QLabel(self)
-                lbl2.setText(f'{str(list_values[0]).replace("[", "").replace("]", "")[1:-1]} =>')
-                lbl2.resize(200, 70)
-                self.font_main.setPointSize(12)
-                lbl2.setFont(self.font_main)
-                lbl2.setStyleSheet("color: #ceecde")
+                lbl2 = TitleLabel(self, f'{str(list_values[0]).replace("[", "").replace("]", "")[1:-1]} =>')
 
                 wid1 = QtWidgets.QGroupBox(self)
+                lbl2.set_widget(wid1)
                 but = QtWidgets.QPushButton(wid1)
 
                 but.move(5, 5)
                 but.resize(100, 25)
                 but.setText('remove')
-                but.setStyleSheet('''QPushButton
-                                    {
-                                        background-color: rgb(70,118,66,190);
-                                        color: rgb(255,255,255)
-                                    }
-                                    
-                                    QPushButton:hover
-                                    {
-                                        background-color: rgb(40,88,36,190);
-                                        color: rgb(255,255,255)
-                                    }''')
+                but.setStyleSheet(but_style)
                 self.clicked_rm_but(but, ls_components.index(list_values))
                 ls_vl = []
                 pad_y = 35
@@ -1235,7 +1288,7 @@ QPushButton:hover
                 index_main+=1
 
     def create_component(self, name, list_values):
-        self.list_components.append([name, list_values, ['None' for a in list_values]])
+        self.list_components.append([name, list_values, [("None" if a.split('=')[0] == "string" else ("False" if a.split('=')[0] == "bool" else "0")) for a in list_values]])
 
     def mousePressEvent(self, event):
         self.button_click = str(event.button())
@@ -1391,6 +1444,10 @@ QPushButton:hover
             self.update_inspector(index_)
             self.items_tree[index_].setSelected(True)
             self.items_tree[index_].parent().setExpanded(True)
+            x_, y_ = self.list_game_objects[self.index_gm_now][2].split(',')
+            x_, y_ = int((int(x_) * self.scale_factor - self.widget0.width() // 2)), int((int(y_) * self.scale_factor - self.widget0.height() // 2))
+            self.lineEditPosX.setText(str(x_))
+            self.lineEditPosY.setText(str(y_))
 
             if self.index_gm_now < len(self.list_game_objects):
                 cmp = ''
@@ -1409,12 +1466,6 @@ QPushButton:hover
                     self.labels_in_scene[index_].setStyleSheet("border: 2px solid blue;"
                                                                f"background-color: {cmp[2]};"
                                                                f"color: {cmpt[2].split('^;^')[2] if cmpt else '#000000'}")
-            else:
-                obj = self.list_ui_objects[self.index_gm_now - len(self.list_game_objects)]
-                self.labels_in_scene[index_].setStyleSheet(
-                    f"border: 2px solid blue; "
-                    f"background-color: {obj[7]}; "
-                    f"color: {obj[10]}")
 
             self.but_for_object.show()
             self.but_for_object2.show()
@@ -1731,7 +1782,7 @@ QPushButton:hover
                 opacity_effect.setOpacity(float(i[5]))
                 size = i[3].split(',')
                 pos = i[2].split(',')
-                lbl = QtWidgets.QLabel()
+                lbl = QLabel()
                 lbl.move(9999, 9999)
                 lbl.resize(0, 0)
 
@@ -2078,14 +2129,11 @@ QPushButton:hover
             lbl.setGraphicsEffect(opacity_effect)
 
             # Transform =>
-            lbl2 = QtWidgets.QLabel(self)
-            lbl2.setText('Transform =>')
-            lbl2.resize(200, 70)
-            self.font_main.setPointSize(12)
-            lbl2.setFont(self.font_main)
+            lbl2 = TitleLabel(self, 'Transform =>')
 
             wid1 = QtWidgets.QGroupBox(self)
             wid1.setMinimumHeight(130)
+            lbl2.set_widget(wid1)
 
             lbl3 = QtWidgets.QLabel(wid1)
             lbl3.setText(' position    = ')
@@ -2155,14 +2203,11 @@ QPushButton:hover
             lbl1.setFont(self.font_main)
 
             # Image =>
-            lbl21 = QtWidgets.QLabel(self)
-            lbl21.setText('Image =>')
-            lbl21.resize(200, 70)
-            self.font_main.setPointSize(12)
-            lbl21.setFont(self.font_main)
+            lbl21 = TitleLabel(self, 'Image =>')
 
             wid2 = QtWidgets.QGroupBox(self)
             wid2.setMinimumHeight(70)
+            lbl21.set_widget(wid2)
 
             lbl31 = QtWidgets.QLabel(wid2)
             lbl31.setText(' file        = ')
@@ -2195,14 +2240,11 @@ QPushButton:hover
             ln_ed41.setFont(self.font_main)
 
             # Other settings =>
-            lbl22 = QtWidgets.QLabel(self)
-            lbl22.setText('Other settings =>')
-            lbl22.resize(200, 70)
-            self.font_main.setPointSize(12)
-            lbl22.setFont(self.font_main)
+            lbl22 = TitleLabel(self, 'Other settings =>')
 
             wid3 = QtWidgets.QGroupBox(self)
             wid3.setMinimumHeight(130)
+            lbl22.set_widget(wid3)
 
             lbl_nm = QtWidgets.QLabel(wid3)
             lbl_nm.setText(' name        = ')
@@ -2260,7 +2302,7 @@ QPushButton:hover
             self.font_main.setPointSize(8)
             ln_ed_par.setFont(self.font_main)
 
-            lbl_s = [lbl1, lbl2, lbl31, lbl41, lbl3, lbl_nm, lbl4, lbl42, lbl5, lbl6, lbl21, lbl22, lbl32, lbl_par]
+            lbl_s = [lbl1, lbl31, lbl41, lbl3, lbl_nm, lbl4, lbl42, lbl5, lbl6, lbl32, lbl_par]
 
             for e in lbl_s:
                 e.setStyleSheet("color: #ceecde")
@@ -2685,6 +2727,7 @@ class SettingsWidget(QWidget, Settings_Form):
             palette = ex.palette()
             palette.setColor(palette.Window, QColor(1, 25, 23))
             ex.setPalette(palette)
+        os.chdir(ex.PATH)
         ex.update_()
         ex.update_tree_widget_project()
         ex.update_scene()

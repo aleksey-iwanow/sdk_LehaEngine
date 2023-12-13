@@ -1,12 +1,12 @@
 background
-images/space_background.jpg
+None
 500,300
 1000,600
 0
 1
 False
 True
-[]
+None
 ~
 bullet
 images/bullet1.png
